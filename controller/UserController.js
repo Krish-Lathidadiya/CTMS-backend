@@ -1,74 +1,122 @@
-const userSchema = require("../model/userModel");
+const User = require("../model/userModel");
 // console.log("Debug - 2.2 -> User Controller Called");
-exports.signUp = async (req, res) => {
-  const user = new userSchema(req.body);
-  console.log("req.body", req.body);
-  await userSchema
-    .findOne({
-      email: req.body.email,
-      firstName: req.body.firstName,
-    })
-    .then((data) => {
-      if (data == undefined || data == null) {
-        user
-          .save()
-          .then((data) => {
-            res.json({
-              message: "User Registered Successfully!",
-              data: data,
-              status: 200,
-            });
-            console.log("user's data", data);
-          })
-          .catch((err) => {
-            res.json({
-              message: "Error Registering User!",
-              error: err,
-              status: 500,
-            });
-            console.log("Error ", err);
-          });
-      } else {
-        res.json({
-          message: "User Already Exists!",
-          status: 500,
-        });
-      }
+
+exports.signup = async (req, res, next) => {
+  try {
+    const { username, email, password } = req.body;
+
+    const newUser = await User.create({
+      username,
+      email,
+      password,
+      role: "user",
     });
+    const createdUser = await User.findById(newUser._id).select("-password");
+
+    if (!createdUser) {
+      return res.status(500).json({ message: "Failed to create user" });
+    }
+    res.status(200).json({ user: createdUser, message: "Signup successful" });
+  } catch (error) {
+    next(error);
+  }
 };
-// console.log("Debug - 2.2 -> User Controller Called");
-exports.login = async (req, res) => {
-  await userSchema
-    .findOne({ email: req.body.email })
-    .then((data) => {
-      if (data == undefined || data == null) {
-        res.json({
-          message: "User Not Found!",
-          status: 404,
-        });
-      } else {
-        if (data.password == req.body.password) {
-          res.json({
-            message: "User Logged In!",
-            data: data,
-            status: 200,
-          });
-        } else {
-          res.json({
-            message: "Invalid Password!",
-            status: 500,
-          });
-        }
-      }
-    })
-    .catch((err) => {
-      res.json({
-        message: "Error Logging In!",
-        error: err,
-        status: 500,
+
+exports.signin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password || email === "" || password === "") {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const validUser = await User.findOne({ email });
+    if (!validUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const validPassword = await validUser.isPasswordCorrect(password);
+    if (!validPassword) {
+      return res.status(400).json({ message: "Invalid password" });
+    }
+
+    const token = validUser.generateAccessToken();
+    const { password: pass, ...rest } = validUser._doc;
+
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: "Strict", // Helps prevent CSRF attacks
+    };
+    if (process.env.NODE_ENV === "production") {
+      cookieOptions.secure = true;
+    }
+
+    res
+      .status(200)
+      .cookie("accessToken", token, cookieOptions)
+      .json({ user: rest, message: "Sign In Successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.signout = (req, res, next) => {
+  try {
+    res
+      .clearCookie("accessToken")
+      .status(200)
+      .json({ message: "User has been signed out" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error Signing Out User!", error: error.message });
+  }
+};
+
+exports.google = async (req, res, next) => {
+  const { email, name, googlePhotoUrl } = req.body;
+  try {
+    let user = await User.findOne({ email }).select("-password");
+    if (user) {
+      const token = user.generateAccessToken();
+      return res
+        .status(200)
+        .cookie("accessToken", token, {
+          httpOnly: true,
+        })
+        .json({ user, message: "User sign-in successful" });
+    } else {
+      const generatedPassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
+
+      const newUser = new User({
+        username:
+          name.toLowerCase().split(" ").join("") +
+          Math.random().toString(9).slice(-4),
+        email,
+        password: generatedPassword,
+        profilePicture: googlePhotoUrl,
+        role: "user",
       });
-    });
+
+      await newUser.save();
+      user = await User.findById(newUser._id).select("-password");
+
+      const token = user.generateAccessToken();
+
+      return res
+        .status(200)
+        .cookie("accessToken", token, {
+          httpOnly: true,
+        })
+        .json({ user, message: "User sign-up successful" });
+    }
+  } catch (error) {
+    next(error);
+  }
 };
+
 // console.log("Debug - 2.2 -> User Controller Called");
 exports.getAllUsers = async (req, res) => {};
 // console.log("Debug - 2.2 -> User Controller Called");

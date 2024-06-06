@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const validate = require("../middleware/zodMiddleWare");
 const userController = require("../controller/UserController");
-const userValidation = require("../util/UserValidation");
 
-router.post("/signup", validate(userValidation), userController.signUp);
-router.post("/login", userController.login);
+router.post("/signup", userController.signup);
+router.post("/signin", userController.signin);
+router.post("/signout", userController.signout);
+router.post("/google", userController.google);
+
 module.exports = router;

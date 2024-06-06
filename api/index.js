@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 const dbConnection = require("../database/dbConnection");
 const dotenv = require("dotenv");
+const {errorMiddleware} =require('../middleware/errorMiddleware');
 const PORT = process.env.PORT || 3000;
 dotenv.config();
 app.use(express.json()); // for parsing application/json
@@ -10,7 +11,7 @@ app.use(express.urlencoded({ extended: true })); // for parsing application/x-ww
 app.use(
   cors({
     // origin: ["*"],
-    // origin: "*",
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -29,4 +30,7 @@ const userRoutes = require("../routes/userRoutes");
 app.use("/roles", roleRoutes);
 app.use("/status", statusRoutes);
 app.use("/api", userRoutes);
+
+app.use(errorMiddleware);
+
 dbConnection();

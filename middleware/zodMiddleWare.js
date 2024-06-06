@@ -2,13 +2,20 @@ const validate = (schema) => async (req, res, next) => {
   try {
     await schema.parseAsync({
       body: req.body,
-      // query: req.query,
-      // params: req.params,
+      query: req.query,
+      params: req.params,
     });
-    return next();
+    next();
   } catch (error) {
-    return res.status(400).json({
-      message: error.errors,
+    // Format the error messages to be more user-friendly
+    const formattedErrors = error.errors.map((err) => ({
+      path: err.path.join('.'),
+      message: err.message,
+    }));
+
+    res.status(400).json({
+      message: 'Validation failed',
+      errors: formattedErrors,
     });
   }
 };
