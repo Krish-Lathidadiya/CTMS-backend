@@ -1,12 +1,14 @@
+const dotenv = require("dotenv");
+dotenv.config();
 const express = require("express"); //creating server
 const app = express();
 const cors = require("cors");
+const cookieParser=require('cookie-parser');
 const dbConnection = require("../database/dbConnection");
-const dotenv = require("dotenv");
 const {errorMiddleware} =require('../middleware/errorMiddleware');
-const PORT = process.env.PORT || 3000;
-dotenv.config();
+const port = process.env.PORT || 3000;
 app.use(express.json()); // for parsing application/json
+app.use(cookieParser())
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(
   cors({
@@ -16,13 +18,9 @@ app.use(
     credentials: true,
   })
 );
-app.listen(PORT, (err) => {
-  if (err) {
-    console.log("Error Connecting to Server", err);
-  } else {
-    console.log("Server Connected to Port 3000");
-  }
-});
+app.listen(port,()=>{
+  console.log("server listening on port " + port);
+})
 const roleRoutes = require("../routes/roleRoutes");
 const statusRoutes = require("../routes/statusRoutes");
 const userRoutes = require("../routes/userRoutes");
